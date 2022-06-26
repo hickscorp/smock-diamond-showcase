@@ -1,0 +1,21 @@
+# JS and other stuff.
+node_modules
+coverage
+coverage.json
+.vscode/
+
+# Hardhat files.
+abi/
+cache/
+artifacts/
+typechain/
+deployments/dev
+deployments/hardhat
+deployments/localhost
+
+# Private data that should not be visible publicly.
+conf/keys.staging.json
+conf/keys.production.json
+
+# Geth local chain state.
+geth-local-poa-chain/geth
