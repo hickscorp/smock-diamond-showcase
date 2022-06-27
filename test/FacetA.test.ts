@@ -20,48 +20,50 @@ const FACETS = ['FacetA', 'FacetB'];
 const MESSAGE = 'BOOM';
 
 describe('FacetA', () => {
-  let deployer: SignerWithAddress;
+  let deployer: SignerWithAddress,
+    facetBSels: string[];
   let diamondAddr: string,
     facetA: FacetA,
     facetBFake: FakeContract<FacetB>;
 
-  describe('without fixtures', async () => {
-    beforeEach(async () => {
-      [deployer] = await ethers.getSigners();
+  before(async () => {
+    [deployer] = await ethers.getSigners();
+    // We will have our fake account for all the calls that can be made on FacetB. So
+    // let's just take all the function selectors from the ABI.
+    facetBSels = sigsFromABI((await artifacts.readArtifact('FacetB')).abi);
+  });
 
-      // We're letting hardhat-deploy take care of deploying the diamond proxy as well
-      // as the specified facets.
-      const deploy = await deployments.diamond.deploy('OurDiamond', {
-        from: deployer.address,
-        owner: deployer.address,
-        facets: FACETS
-      });
-      diamondAddr = deploy.address;
-
-      // Although the Diamond proxy at the deployed address has registered both
-      // facets, we really just want the FacetA functionality to be available from
-      // our typescript object here - this is why `facetA` is typed `FacetA`, not
-      // `OurDiamond`. Keep in mind that a diamond is really just a proxy with a bit
-      // more routing abilities. So calling methods from any facet contract directly
-      // on the diamond deployed address is the expected way of doing things.
-      facetA = await ethers.getContractAt('FacetA', diamondAddr);
+  const deployDiamond = async () => {
+    // We're letting hardhat-deploy take care of deploying the diamond proxy as well
+    // as the specified facets.
+    const deploy = await deployments.diamond.deploy('OurDiamond', {
+      from: deployer.address,
+      owner: deployer.address,
+      facets: FACETS
     });
+    // Although the Diamond proxy at the deployed address has registered both
+    // facets, we really just want the FacetA functionality to be available from
+    // our typescript object here - this is why `facetA` is typed `FacetA`, not
+    // `OurDiamond`. Keep in mind that a diamond is really just a proxy with a bit
+    // more routing abilities. So calling methods from any facet contract directly
+    // on the diamond deployed address is the expected way of doing things.
+    facetA = await ethers.getContractAt('FacetA', diamondAddr = deploy.address);
+  };
+
+  describe('without fixtures', async () => {
+    beforeEach(async () =>
+      // Deploys diamond, sets `facetA`.
+      await deployDiamond()
+    );
 
     describe('foo/1', async () => {
-      before(async () => {
+      beforeEach(async () => {
         // Prepare a fake for our FacetB.
         facetBFake = await smock.fake('FacetB');
-      });
-
-      beforeEach(async () => {
         // Reset our fakes / mocks.
-        facetBFake.bar.reset();
+        [facetBFake.bar, facetBFake.baz]
+          .forEach(method => method.reset());
 
-        // Grab our FacetB ABI.
-        const facetBAbi = await artifacts.readArtifact('FacetB');
-        // We will have our fake account for all the calls that can be made on FacetB. So
-        // let's just take all the function selectors from the ABI.
-        const facetBSels = sigsFromABI(facetBAbi.abi);
         // Now grab a handle to our DiamondCut implementation, sitting as a facet of our deployed diamond.
         const facetCut = await ethers.getContractAt('IDiamondCut', diamondAddr) as IDiamondCut;
         // We will now replace FacetB with our fake.
@@ -102,34 +104,22 @@ describe('FacetA', () => {
     });
   });
 
-  describe('using fixtures fixtures', async () => {
+  describe('using fixtures', async () => {
     // Pay attention here:
-    const diamondFixture = deployments.createFixture(async (hre, ops) => {
-      return await hre.deployments.diamond.deploy('OurDiamond', {
-        from: deployer.address,
-        owner: deployer.address,
-        facets: FACETS
-      });
-    });
+    const diamondFixture = deployments.createFixture(async (hre, /*opts*/) =>
+      await deployDiamond()
+    );
 
-    beforeEach(async () => {
-      [deployer] = await ethers.getSigners();
-      // Pay attention here:
-      const deploy = await diamondFixture();
-      diamondAddr = deploy.address;
-      facetA = await ethers.getContractAt('FacetA', diamondAddr);
-    });
+    beforeEach(async () =>
+      // Deploys diamond, sets `facetA`.
+      await diamondFixture()
+    );
 
     describe('foo/1', async () => {
-      before(async () => {
-        facetBFake = await smock.fake('FacetB');
-      });
-
       beforeEach(async () => {
-        facetBFake.bar.reset();
-
-        const facetBAbi = await artifacts.readArtifact('FacetB');
-        const facetBSels = sigsFromABI(facetBAbi.abi);
+        facetBFake = await smock.fake('FacetB');
+        [facetBFake.bar, facetBFake.baz]
+          .forEach(method => method.reset());
         const facetCut = await ethers.getContractAt('IDiamondCut', diamondAddr) as IDiamondCut;
         await facetCut.diamondCut([{
           facetAddress: facetBFake.address,
