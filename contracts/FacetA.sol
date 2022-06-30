@@ -8,20 +8,11 @@ import 'hardhat/console.sol';
 
 
 contract FacetA is AFacet {
-  function foo(string memory message) public {
-    console.log('A.foo/1: .');
-    console.log('     message', message);
-    console.log('        this', address(this));
-    console.log('  msg.sender', msg.sender);
+  function read(string memory message) public view returns(string memory) {
+    return FacetB(address(this)).foo(message);
+  }
 
-    LibA.Data storage ds = LibA.data();
-    ds.message = message;
-
-    console.log(' Calling FacetB.bar/1...');
-    FacetB(address(this)).bar(message);
-
-    console.log(' Calling FacetB.baz/1...');
-    string memory result = FacetB(address(this)).baz(message);
-    console.log('      result', result);
+  function write(string memory message) public {
+    FacetB(address(this)).bar(LibA.data().message = message);
   }
 }
