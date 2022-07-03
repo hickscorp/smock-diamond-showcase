@@ -48,7 +48,8 @@ describe('FacetA', () => {
       owner: deployer.address,
       facets: ['FacetA', 'FacetB']
     });
-    facetA = await ethers.getContractAt('FacetA', diamondAddr = deploy.address);
+    diamondAddr = deploy.address;
+    facetA = await ethers.getContractAt('FacetA', diamondAddr);
   };
 
   const useFacetBFake = async () => {

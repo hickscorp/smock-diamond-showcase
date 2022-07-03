@@ -3,7 +3,6 @@ pragma solidity ^0.8.4;
 
 import './lib/AFacet.sol';
 import './lib/LibB.sol';
-import 'hardhat/console.sol';
 
 
 contract FacetB is AFacet {
